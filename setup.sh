@@ -35,7 +35,7 @@ cd $ROOT_DIR
 read -p "🌐 Nhập tên miền (VD: n8n.domain.com): " DOMAIN_INPUT
 DOMAIN=$(echo "$DOMAIN_INPUT" | sed 's~^https\?://~~')
 
-# Kiểm tra tên miền đơn giản (tương thích sh/dash)
+# Kiểm tra tên miền
 if ! echo "$DOMAIN" | grep -qE '^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'; then
     echo "❌ Tên miền không hợp lệ!"
     exit 1
@@ -46,9 +46,13 @@ if [ -z "$N8N_PROTOCOL" ]; then
     N8N_PROTOCOL="https"
 fi
 
+# Nhập API Token (ẩn input)
 echo "🔑 API Token cần quyền Zone:Read, Zone:DNS:Edit"
-read -sp "🔑 Nhập API Token Cloudflare: " CF_API_TOKEN
-echo
+printf "🔑 Nhập API Token Cloudflare: "
+stty -echo  # Tắt hiển thị input
+read CF_API_TOKEN
+stty echo   # Bật lại hiển thị input
+printf "\n" # Xuống dòng sau khi nhập
 
 # Tìm tên vùng (zone) từ tên miền
 DOMAIN_ZONE=$(echo "$DOMAIN_INPUT" | awk -F. '{print $(NF-1)"."$NF}')
