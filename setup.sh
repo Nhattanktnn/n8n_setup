@@ -125,6 +125,7 @@ if cloudflared tunnel list | grep -q $CLOUDFLARE_TUNNEL_NAME; then
     echo "⚠️ Tunnel $CLOUDFLARE_TUNNEL_NAME đã tồn tại. Xóa trước khi tạo lại? (y/N)"
     read -r delete_tunnel
     if [[ "$delete_tunnel" =~ ^[Yy]$ ]]; then
+        cloudflared tunnel cleanup
         cloudflared tunnel delete $CLOUDFLARE_TUNNEL_NAME
     else
         echo "❌ Hủy thao tác."
