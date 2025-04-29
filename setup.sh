@@ -31,6 +31,7 @@ mkdir -p $ROOT_DIR/nginx/conf.d $ROOT_DIR/cloudflared
 cd $ROOT_DIR
 
 # Nhập và kiểm tra domain
+[ -t 0 ] || exec < /dev/tty
 read -p "🌐 Nhập tên miền (VD: n8n.domain.com): " DOMAIN_INPUT
 DOMAIN=$(echo "$DOMAIN_INPUT" | sed 's~^https\?://~~')
 
