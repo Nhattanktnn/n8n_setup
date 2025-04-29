@@ -298,6 +298,7 @@ else
     echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
 fi
 echo "👉 Áp dụng group mới"
+sudo usermod -aG docker $USER
 newgrp docker
 
 echo "👉 Setup n8n bằng docker-compose:"
