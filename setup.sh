@@ -33,10 +33,13 @@ cd $ROOT_DIR
 # Nhập và kiểm tra domain
 read -p "🌐 Nhập tên miền (VD: https://n8n.domain.com hoặc n8n.domain.com): " DOMAIN_INPUT
 DOMAIN=$(echo "$DOMAIN_INPUT" | sed -E 's~^https?://~~')
+
+# Kiểm tra tên miền bằng bash native regex
 if [[ ! "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
     echo "❌ Tên miền không hợp lệ!"
     exit 1
 fi
+
 N8N_PROTOCOL=$(echo "$DOMAIN_INPUT" | grep -Eo '^https?://' | sed 's~://~~')
 if [ -z "$N8N_PROTOCOL" ]; then
     N8N_PROTOCOL="https"
