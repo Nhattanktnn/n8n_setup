@@ -174,6 +174,7 @@ N8N_EDITOR_BASE_URL=${N8N_PROTOCOL}://${DOMAIN}
 WEBHOOK_URL=${N8N_PROTOCOL}://${DOMAIN}
 N8N_SECURE_COOKIE=false
 GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+N8N_TIMEZONE=Asia/Ho_Chi_Minh
 N8N_PORT=5678
 N8N_BASIC_AUTH_ACTIVE=false
 EXECUTIONS_DATA_SAVE_ON_ERROR=all
@@ -312,10 +313,10 @@ else
     fi
     echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
 fi
+echo "👉 Áp dụng group mới"
+newgrp docker
 
-echo ""
+echo "👉 Setup n8n bằng docker-compose:"
+cd ~/n8n-docker && docker-compose --env-file .env up -d
 echo "✅ Đã hoàn tất setup!"
-echo "👉 Chạy hệ thống bằng lệnh:"
-echo "cd $ROOT_DIR && docker-compose --env-file .env up -d"
-echo ""
 echo "🌟 Hệ thống n8n + nginx + cloudflared + DNS ready!"
