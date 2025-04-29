@@ -315,5 +315,5 @@ echo "👉 Setup n8n bằng docker-compose:"
 cd ~/n8n-docker && docker-compose --env-file .env up -d
 
 echo "🌟 Hệ thống n8n + nginx + cloudflared + DNS ready! Hãy truy cập: https://$DOMAIN""
-echo "⚠️ Lưu ý: Nếu Docker vẫn không hoạt động, hãy chạy: newgrp docker hoặc sudo reboot
+echo '⚠️ Lưu ý: Nếu Docker vẫn không hoạt động, hãy chạy: newgrp docker hoặc sudo reboot'
 
