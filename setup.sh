@@ -234,7 +234,8 @@ echo "🌐 Tạo bản ghi DNS trỏ tên miền vào Tunnel..."
 
 # Lấy Zone ID
 ZONE_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN_ZONE}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
-ZONE_ID=$(echo $ZONE_INFO | jq -r '.result[0].id')
+echo "Debug API Response: $ZONE_INFO"  # Thêm dòng này để xem response
+ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.result[0].id')
 
 if [ "$ZONE_ID" = "null" ] || [ -z "$ZONE_ID" ]; then
     echo "❌ Không tìm được Zone ID. Kiểm tra domain hoặc token."
