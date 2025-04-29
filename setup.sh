@@ -94,6 +94,32 @@ else
 fi
 
 # Đăng nhập Cloudflare
+CERT_FILE="$HOME/.cloudflared/cert.pem"
+
+# Xử lý certificate cũ
+if [ -f "$CERT_FILE" ]; then
+    echo "⚠️ Đã phát hiện Certificate cũ tại: $CERT_FILE"
+    
+    # Hiển thị cảnh báo và xác nhận
+    echo "❗️ Bạn cần xóa certificate cũ để tiếp tục."
+    read -p "❓ Bạn có muốn XÓA certificate hiện tại? (y/N) " -r confirm_delete
+    
+    # Xử lý lựa chọn
+    if [[ ! "$confirm_delete" =~ ^[Yy]$ ]]; then
+        echo "❌ Hủy thao tác do người dùng từ chối."
+        exit 1
+    fi
+
+    # Thực hiện xóa
+    echo "🧹 Đang xóa certificate cũ..."
+    if ! rm -f "$CERT_FILE"; then
+        echo "❌ Không thể xóa file! Kiểm tra quyền truy cập:"
+        echo "sudo rm -f $CERT_FILE"
+        exit 1
+    fi
+    echo "✅ Đã xóa certificate thành công!"
+fi
+
 echo "🔐 Đăng nhập Cloudflare..."
 cloudflared tunnel login || { echo "❌ Đăng nhập Cloudflare thất bại"; exit 1; }
 
