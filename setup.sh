@@ -328,7 +328,7 @@ fi
 echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
 
 echo "👉 Setup n8n bằng docker-compose:"
-cd ~/n8n-docker && docker-compose --env-file .env up -d
+cd ~/n8n-docker && docker-compose pull && docker-compose up -d --force-recreate
 
 echo "🌟 Hệ thống n8n + nginx + cloudflared + DNS ready!"
 echo '⚠️ Lưu ý: Nếu Docker vẫn không hoạt động, hãy chạy: newgrp docker hoặc sudo reboot'
