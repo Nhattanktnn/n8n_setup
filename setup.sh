@@ -315,7 +315,7 @@ sudo usermod -aG docker $USER || {
     echo "👉 Thử chạy thủ công: sudo usermod -aG docker $USER";
     exit 1;
 }
-# newgrp docker
+newgrp docker
 
 echo "👉 Setup n8n bằng docker-compose:"
 cd ~/n8n-docker && docker-compose --env-file .env up -d
