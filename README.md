@@ -1,13 +1,9 @@
 # n8n_setup
 ## Cây thư mục có dạng như sau:
-n8n-docker/
-├── docker-compose.yml
-├── .env
-├── cloudflared/
-│   └── config.yml
-├── nginx/
-│   └── conf.d/
-│       └── default.conf
+
+```
+n8n-docker/ ├── docker-compose.yml ├── .env ├── cloudflared/ │   └── config.yml ├── nginx/ │   └── conf.d/ │       └── default.conf
+```
 
 ## B1: Thêm domain vào cloudflared: 
 Đăng nhập vào Cloudflared -> Account Home -> Add domain
