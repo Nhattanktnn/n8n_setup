@@ -18,9 +18,9 @@ fi
 if ! command -v docker >/dev/null 2>&1; then
     echo "❌ Docker chưa cài. Đang cài đặt..."
     sudo apt-get install -y docker.io || { echo "❌ Cài Docker thất bại"; exit 1; }
-    sudo systemctl start docker
-    sudo systemctl enable docker
 fi
+sudo systemctl start docker
+sudo systemctl enable docker
 # Kiểm tra docker-compose
 if ! command -v docker-compose >/dev/null 2>&1; then
     echo "❌ Docker Compose chưa cài. Đang cài đặt..."
