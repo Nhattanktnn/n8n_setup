@@ -64,10 +64,10 @@ fi
 # Nhập API Token (ẩn input)
 echo "🔑 API Token cần quyền Zone:Read, Zone:DNS:Edit"
 printf "🔑 Nhập API Token Cloudflare: "
-stty -echo  # Tắt hiển thị input
+# Tắt hiển thị input: stty -echo
 read CF_API_TOKEN
-stty echo   # Bật lại hiển thị input
-printf "\n" # Xuống dòng sau khi nhập
+# Bật lại hiển thị input: stty echo
+# Xuống dòng sau khi nhập: printf "\n" 
 
 # Tìm tên vùng (zone) từ tên miền
 # DOMAIN_ZONE=$(echo "$DOMAIN_INPUT" | awk -F. '{print $(NF-1)"."$NF}')
