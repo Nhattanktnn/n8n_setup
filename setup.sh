@@ -14,11 +14,29 @@ if ! command -v jq >/dev/null 2>&1; then
     echo "❌ jq chưa cài. Đang cài đặt..."
     sudo apt-get install -y jq || { echo "❌ Cài jq thất bại"; exit 1; }
 fi
+# Kiểm tra Docker
 if ! command -v docker >/dev/null 2>&1; then
     echo "❌ Docker chưa cài. Đang cài đặt..."
     sudo apt-get install -y docker.io || { echo "❌ Cài Docker thất bại"; exit 1; }
     sudo systemctl start docker
     sudo systemctl enable docker
+
+    # Thêm user vào group Docker
+    echo "🔧 Thêm user '$USER' vào group Docker..."
+    sudo usermod -aG docker $USER || { echo "❌ Thêm user vào group Docker thất bại"; exit 1; }
+    
+    echo "⚠️ Yêu cầu đăng xuất và đăng nhập lại để áp dụng quyền Docker!"
+    echo "👉 Sau đó chạy lại script này lần nữa."
+    exit 0
+fi
+
+# Kiểm tra user đã trong group Docker chưa
+if ! groups $USER | grep -q '\bdocker\b'; then
+    echo "🔧 User chưa có quyền Docker. Đang thêm vào group..."
+    sudo usermod -aG docker $USER || { echo "❌ Thêm user vào group Docker thất bại"; exit 1; }
+    echo "⚠️ Yêu cầu đăng xuất và đăng nhập lại để áp dụng quyền Docker!"
+    echo "👉 Sau đó chạy lại script này lần nữa."
+    exit 0
 fi
 if ! command -v docker-compose >/dev/null 2>&1; then
     echo "❌ Docker Compose chưa cài. Đang cài đặt..."
