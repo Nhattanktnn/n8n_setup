@@ -292,24 +292,43 @@ DNS_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID
 DNS_EXISTS=$(echo $DNS_CHECK | jq -r '.result | length')
 
 if [ "$DNS_EXISTS" -gt 0 ]; then
-    echo "⚠️ Bản ghi DNS cho $DOMAIN_INPUT đã tồn tại. Bỏ qua tạo mới."
-else
-    # Tạo bản ghi CNAME
-    CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data '{
-      "type":"CNAME",
-      "name":"'"${DOMAIN_INPUT}"'",
-      "content":"'"${TUNNEL_ID}.cfargotunnel.com"'",
-      "ttl":120,
-      "proxied":true
-    }')
-    SUCCESS=$(echo $CREATE_DNS | jq -r '.success')
-    if [ "$SUCCESS" != "true" ]; then
-        echo "❌ Tạo DNS thất bại: $(echo $CREATE_DNS | jq -r '.errors')"
-        cloudflared tunnel delete $CLOUDFLARE_TUNNEL_NAME >/dev/null 2>&1 || true
+    echo "⚠️ Bản ghi DNS cho $DOMAIN_INPUT đã tồn tại. Đang xóa bản ghi cũ..."
+    
+    # Lấy DNS Record ID
+    DNS_RECORD_ID=$(echo "$DNS_CHECK" | jq -r '.result[0].id')
+    
+    # Xóa bản ghi cũ
+    DELETE_DNS=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${DNS_RECORD_ID}" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" \
+      -H "Content-Type: application/json")
+    
+    if [ "$(echo "$DELETE_DNS" | jq -r '.success')" != "true" ]; then
+        echo "❌ Xóa bản ghi DNS cũ thất bại: $(echo "$DELETE_DNS" | jq -r '.errors')"
         exit 1
     fi
-    echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
+    echo "✅ Đã xóa bản ghi DNS cũ thành công!"
 fi
+
+# Tạo bản ghi CNAME mới
+echo "🔄 Đang tạo bản ghi DNS mới..."
+CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+  -H "Authorization: Bearer ${CF_API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "type":"CNAME",
+    "name":"'"${DOMAIN_INPUT}"'",
+    "content":"'"${TUNNEL_ID}.cfargotunnel.com"'",
+    "ttl":120,
+    "proxied":true
+  }')
+
+SUCCESS=$(echo "$CREATE_DNS" | jq -r '.success')
+if [ "$SUCCESS" != "true" ]; then
+    echo "❌ Tạo DNS thất bại: $(echo "$CREATE_DNS" | jq -r '.errors')"
+    cloudflared tunnel delete $CLOUDFLARE_TUNNEL_NAME >/dev/null 2>&1 || true
+    exit 1
+fi
+echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
 
 echo "👉 Setup n8n bằng docker-compose:"
 cd ~/n8n-docker && docker-compose --env-file .env up -d
