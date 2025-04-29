@@ -20,5 +20,5 @@ Copy domain để sử dụng
 bash <(curl -L https://raw.githubusercontent.com/Nhattanktnn/n8n_setup/refs/heads/main/setup.sh)
 
 ** Sau khi cài, nếu lỗi, hãy thử:
-sudo usermod -aG docker $USER
+sudo usermod -aG docker $USER \n
 sudo reboot
