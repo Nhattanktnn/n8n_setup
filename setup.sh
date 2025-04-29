@@ -166,15 +166,12 @@ if [ -f ".env" ]; then
 fi
 cat <<EOL > .env
 # .env cấu hình n8n
-DOMAIN=${DOMAIN}
 N8N_PROTOCOL=${N8N_PROTOCOL}
 N8N_HOST=${DOMAIN}
 N8N_EDITOR_BASE_URL=${N8N_PROTOCOL}://${DOMAIN}
 WEBHOOK_URL=${N8N_PROTOCOL}://${DOMAIN}
 N8N_SECURE_COOKIE=false
 GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
-N8N_TIMEZONE=Asia/Ho_Chi_Minh
-N8N_PORT=5678
 N8N_BASIC_AUTH_ACTIVE=false
 EXECUTIONS_DATA_SAVE_ON_ERROR=all
 EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
@@ -203,10 +200,8 @@ services:
     image: n8nio/n8n:latest
     container_name: n8n
     ports:
-      - "\${N8N_PORT}:5678"
-    environment:
-      - GENERIC_TIMEZONE=\${N8N_TIMEZONE}
-      - N8N_BASIC_AUTH_ACTIVE=\${N8N_BASIC_AUTH_ACTIVE}
+      - "5678:5678"
+    env_file: .env
     volumes:
       - n8n_data:/home/node/.n8n
     restart: always
