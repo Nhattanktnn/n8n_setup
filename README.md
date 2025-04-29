@@ -33,6 +33,10 @@ Copy domain để sử dụng
 ```
 bash <(curl -L https://raw.githubusercontent.com/Nhattanktnn/n8n_setup/refs/heads/main/setup.sh)
 ```
-** Sau khi cài, nếu lỗi, hãy thử lệnh dưới đây, sau đó chạy lại bước 3:
-```sudo usermod -aG docker $USER```
-```sudo reboot```
+### Sau khi cài, nếu lỗi, hãy thử lệnh dưới đây, sau đó chạy lại bước 3:
+```
+sudo usermod -aG docker $USER
+```
+```
+sudo reboot
+```
