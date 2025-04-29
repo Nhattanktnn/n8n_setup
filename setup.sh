@@ -298,8 +298,24 @@ else
     echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN_INPUT!"
 fi
 echo "👉 Áp dụng group mới"
-sudo usermod -aG docker $USER
-newgrp docker
+# Tạo group docker nếu chưa tồn tại
+if ! getent group docker >/dev/null; then
+    echo "🔧 Tạo group Docker..."
+    sudo groupadd --system docker || {
+        echo "❌ Lỗi nghiêm trọng: Không thể tạo group Docker";
+        echo "👉 Kiểm tra quyền sudo và thử lại";
+        exit 1;
+    }
+fi
+
+# Thêm user vào group
+echo "🔧 Thêm user '$USER' vào group Docker..."
+sudo usermod -aG docker $USER || {
+    echo "❌ Lỗi: Không thể thêm user vào group Docker";
+    echo "👉 Thử chạy thủ công: sudo usermod -aG docker $USER";
+    exit 1;
+}
+# newgrp docker
 
 echo "👉 Setup n8n bằng docker-compose:"
 cd ~/n8n-docker && docker-compose --env-file .env up -d
