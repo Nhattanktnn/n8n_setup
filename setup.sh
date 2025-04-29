@@ -20,24 +20,8 @@ if ! command -v docker >/dev/null 2>&1; then
     sudo apt-get install -y docker.io || { echo "❌ Cài Docker thất bại"; exit 1; }
     sudo systemctl start docker
     sudo systemctl enable docker
-
-    # Thêm user vào group Docker
-    echo "🔧 Thêm user '$USER' vào group Docker..."
-    sudo usermod -aG docker $USER || { echo "❌ Thêm user vào group Docker thất bại"; exit 1; }
-    
-    echo "⚠️ Yêu cầu đăng xuất và đăng nhập lại để áp dụng quyền Docker!"
-    echo "👉 Sau đó chạy lại script này lần nữa."
-    exit 0
 fi
-
-# Kiểm tra user đã trong group Docker chưa
-if ! groups $USER | grep -q '\bdocker\b'; then
-    echo "🔧 User chưa có quyền Docker. Đang thêm vào group..."
-    sudo usermod -aG docker $USER || { echo "❌ Thêm user vào group Docker thất bại"; exit 1; }
-    echo "⚠️ Yêu cầu đăng xuất và đăng nhập lại để áp dụng quyền Docker!"
-    echo "👉 Sau đó chạy lại script này lần nữa."
-    exit 0
-fi
+# Kiểm tra docker-compose
 if ! command -v docker-compose >/dev/null 2>&1; then
     echo "❌ Docker Compose chưa cài. Đang cài đặt..."
     sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || { echo "❌ Tải Docker Compose thất bại"; exit 1; }
