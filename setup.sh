@@ -14,14 +14,27 @@ if ! command -v jq >/dev/null 2>&1; then
     echo "❌ jq chưa cài. Đang cài đặt..."
     sudo apt-get install -y jq || { echo "❌ Cài jq thất bại"; exit 1; }
 fi
-# Kiểm tra Docker
+
 if ! command -v docker >/dev/null 2>&1; then
     echo "❌ Docker chưa cài. Đang cài đặt..."
     sudo apt-get install -y docker.io || { echo "❌ Cài Docker thất bại"; exit 1; }
 fi
-sudo systemctl start docker
+
+# Đảm bảo Docker daemon hoạt động
+if ! sudo systemctl is-active --quiet docker; then
+    echo "❌ Docker daemon không hoạt động. Đang khởi động..."
+    sudo systemctl start docker
+fi
 sudo systemctl enable docker
-# Kiểm tra docker-compose
+
+# Thêm user vào nhóm docker (nếu chưa)
+if ! groups $USER | grep -q '\bdocker\b'; then
+    echo "➕ Thêm user '$USER' vào nhóm docker..."
+    sudo usermod -aG docker $USER
+    echo "⚠️ Bạn cần đăng xuất đăng nhập lại HOẶC chạy: newgrp docker"
+fi
+
+# Docker Compose
 if ! command -v docker-compose >/dev/null 2>&1; then
     echo "❌ Docker Compose chưa cài. Đang cài đặt..."
     sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || { echo "❌ Tải Docker Compose thất bại"; exit 1; }
@@ -300,5 +313,7 @@ fi
 
 echo "👉 Setup n8n bằng docker-compose:"
 cd ~/n8n-docker && docker-compose --env-file .env up -d
-echo "✅ Đã hoàn tất setup!"
-echo "🌟 Hệ thống n8n + nginx + cloudflared + DNS ready!"
+
+echo "🌟 Hệ thống n8n + nginx + cloudflared + DNS ready! Hãy truy cập: https://$DOMAIN""
+echo "⚠️ Lưu ý: Nếu Docker vẫn không hoạt động do quyền, hãy chạy: newgrp docker hoặc đăng xuất/đăng nhập lại"
+
