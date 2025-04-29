@@ -31,11 +31,11 @@ mkdir -p $ROOT_DIR/nginx/conf.d $ROOT_DIR/cloudflared
 cd $ROOT_DIR
 
 # Nhập và kiểm tra domain
-read -p "🌐 Nhập tên miền (VD: https://n8n.domain.com hoặc n8n.domain.com): " DOMAIN_INPUT
-DOMAIN=$(echo "$DOMAIN_INPUT" | sed -E 's~^https?://~~')
+read -p "🌐 Nhập tên miền (VD: n8n.domain.com): " DOMAIN_INPUT
+DOMAIN=$(echo "$DOMAIN_INPUT" | sed 's~^https\?://~~')
 
-# Kiểm tra tên miền bằng bash native regex
-if [[ ! "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
+# Kiểm tra tên miền đơn giản (tương thích sh/dash)
+if ! echo "$DOMAIN" | grep -qE '^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'; then
     echo "❌ Tên miền không hợp lệ!"
     exit 1
 fi
