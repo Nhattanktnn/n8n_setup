@@ -40,3 +40,12 @@ sudo usermod -aG docker $USER
 ```
 sudo reboot
 ```
+### Muốn xoá docker và các container đã cài thì:
+```
+sudo apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras && \
+sudo rm -rf /var/lib/docker /var/lib/containerd /etc/docker ~/.docker /var/run/docker.sock && \
+sudo groupdel docker 2>/dev/null && \
+sudo rm -rf /etc/apt/sources.list.d/docker* && \
+sudo apt-get autoremove -y --purge && \
+sudo updatedb && echo "Docker đã được xóa sạch 100%"
+```
