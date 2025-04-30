@@ -93,20 +93,9 @@ fi
 # Đăng nhập Cloudflare
 CERT_FILE="$HOME/.cloudflared/cert.pem"
 
-# Xử lý certificate cũ
+# Xử lý certificate cũ đã tồn tại
 if [ -f "$CERT_FILE" ]; then
     echo "⚠️ Đã phát hiện Certificate cũ tại: $CERT_FILE"
-    
-    # Hiển thị cảnh báo và xác nhận
-    echo "❗️ Bạn cần xóa certificate cũ để tiếp tục."
-    read -p "❓ Bạn có muốn XÓA certificate hiện tại? (y/N) " -r confirm_delete
-    
-    # Xử lý lựa chọn
-    if [[ ! "$confirm_delete" =~ ^[Yy]$ ]]; then
-        echo "❌ Hủy thao tác do người dùng từ chối."
-        exit 1
-    fi
-
     # Thực hiện xóa
     echo "🧹 Đang xóa certificate cũ..."
     if ! rm -f "$CERT_FILE"; then
@@ -122,16 +111,10 @@ cloudflared tunnel login || { echo "❌ Đăng nhập Cloudflare thất bại"; 
 
 # Kiểm tra và xóa Tunnel nếu đã tồn tại
 if cloudflared tunnel list | grep -q $CLOUDFLARE_TUNNEL_NAME; then
-    echo "⚠️ Tunnel $CLOUDFLARE_TUNNEL_NAME đã tồn tại. Xóa trước khi tạo lại? (y/N)"
-    read -r delete_tunnel
-    if [[ "$delete_tunnel" =~ ^[Yy]$ ]]; then
-        cloudflared tunnel stop $CLOUDFLARE_TUNNEL_NAME || true
-        cloudflared tunnel cleanup $CLOUDFLARE_TUNNEL_NAME
-        cloudflared tunnel delete $CLOUDFLARE_TUNNEL_NAME
-    else
-        echo "❌ Hủy thao tác."
-        exit 1
-    fi
+    echo "⚠️ Tunnel $CLOUDFLARE_TUNNEL_NAME đã tồn tại. Đang thực hiện xoá..."
+    cloudflared tunnel stop $CLOUDFLARE_TUNNEL_NAME || true
+    cloudflared tunnel cleanup $CLOUDFLARE_TUNNEL_NAME
+    cloudflared tunnel delete $CLOUDFLARE_TUNNEL_NAME
 fi
 
 # Tạo tunnel
@@ -149,20 +132,25 @@ echo "✅ Tunnel ID: $TUNNEL_ID"
 # Copy credentials
 CREDENTIALS_SOURCE_FILE="$HOME/.cloudflared/${TUNNEL_ID}.json"
 CREDENTIALS_DEST_FILE="$ROOT_DIR/cloudflared/${TUNNEL_ID}.json"
+
+# Xác định Credential cần copy tồn tại hay không
 if [ ! -f "$CREDENTIALS_SOURCE_FILE" ]; then
     echo "❌ File credentials không tồn tại: $CREDENTIALS_SOURCE_FILE"
     exit 1
 fi
+
+# Xóa toàn bộ credentials cũ trong thư mục (nếu có)
+if ls "$ROOT_DIR/cloudflared/"*.json 1> /dev/null 2>&1; then
+    echo "🧹 Phát hiện credentials cũ. Đang xóa..."
+    rm -f "$ROOT_DIR/cloudflared/"*.json || { echo "❌ Không thể xóa credentials cũ"; exit 1; }
+    echo "✅ Đã xóa toàn bộ credentials cũ"
+fi
+
 cp "$CREDENTIALS_SOURCE_FILE" "$CREDENTIALS_DEST_FILE"
 
 # Ghi file .env
 if [ -f ".env" ]; then
-    echo "⚠️ File .env đã tồn tại. Ghi đè? (y/N)"
-    read -r overwrite
-    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-        echo "❌ Hủy ghi file .env"
-        exit 1
-    fi
+    echo "⚠️ File .env đã tồn tại. Đang ghi đè..."
 fi
 cat <<EOL > .env
 # .env cấu hình n8n
@@ -185,12 +173,7 @@ EOL
 
 # Ghi file docker-compose.yml
 if [ -f "docker-compose.yml" ]; then
-    echo "⚠️ File docker-compose.yml đã tồn tại. Ghi đè? (y/N)"
-    read -r overwrite
-    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-        echo "❌ Hủy ghi file docker-compose.yml"
-        exit 1
-    fi
+    echo "⚠️ File docker-compose.yml đã tồn tại. Đang ghi đè..."
 fi
 cat <<EOL > docker-compose.yml
 #version: '3.8'
