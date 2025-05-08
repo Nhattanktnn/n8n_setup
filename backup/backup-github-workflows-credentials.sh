@@ -34,29 +34,32 @@ remove_vietnamese_accents() {
 rename_files_in_directory() {
   DIR="$1"
 
-  # Kiểm tra nếu thư mục tồn tại trong container
-  if ! docker exec -it n8n sh -c "test -d $DIR"; then
-    echo "Thư mục $DIR không tồn tại trong container, bỏ qua..."
-    return
-  fi
-
-  # Duyệt qua tất cả các tệp JSON trong thư mục
-  docker exec -it n8n sh -c "for file in $DIR/*.json; do
-    if [ -f \$file ]; then
-      name=\$(jq -r '.name' \$file 2>/dev/null)
-      if [ -z \"\$name\" ] || [ \"\$name\" = \"null\" ]; then
-        echo \"Không lấy được tên từ \$file, bỏ qua...\"
-        continue
-      fi
-      safe_name=\$(echo \"\$name\" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | sed -E 's/-+/-/g')
-      new_path=\$DIR/\${safe_name}.json
-      if [ \"\$file\" != \"\$new_path\" ]; then
-        mv \$file \$new_path
-        echo \"✅ Đã đổi: \$(basename \$file) → \$(basename \$new_path)\"
-      fi
+  docker exec n8n sh -c "
+    if [ ! -d \"$DIR\" ]; then
+      echo 'Thư mục $DIR không tồn tại trong container, bỏ qua...'
+      exit 0
     fi
-  done"
+
+    for file in $DIR/*.json; do
+      if [ -f \"\$file\" ]; then
+        name=\$(jq -r '.name' \"\$file\" 2>/dev/null)
+        if [ -z \"\$name\" ] || [ \"\$name\" = \"null\" ]; then
+          echo \"Không lấy được tên từ \$file, bỏ qua...\"
+          continue
+        fi
+
+        safe_name=\$(echo \"\$name\" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | sed -E 's/-+/-/g')
+        new_path=\"$DIR/\${safe_name}.json\"
+
+        if [ \"\$file\" != \"\$new_path\" ]; then
+          mv \"\$file\" \"\$new_path\"
+          echo \"✅ Đã đổi: \$(basename \"\$file\") → \$(basename \"\$new_path\")\"
+        fi
+      fi
+    done
+  "
 }
+
 
 # Đổi tên các file trong thư mục workflows và credentials
 echo "🔄 Đang đổi tên các file workflows..."
