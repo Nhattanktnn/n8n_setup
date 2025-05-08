@@ -1,11 +1,2 @@
-# 🧰 Cấu trúc thư mục khuyến nghị
-```
-n8n-backup/
-├── workflows/
-│   └── <workflow-name>.json
-├── credentials/
-│   └── <credential-name>.json
-└── rename-workflow-files.sh
-```
-
-# Chạy lệnh backup vào host
+# Chạy lệnh backup vào github
+```bash <(curl -L https://raw.githubusercontent.com/Nhattanktnn/n8n_setup/refs/heads/main/backup/backup-github-workflows-credentials.sh)```
