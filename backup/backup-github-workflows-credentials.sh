@@ -1,75 +1,35 @@
 #!/bin/sh
-set -e
 
-# === Cấu hình thư mục cố định trong container ===
-BASE_DIR="/home/node/n8n_backup"
-WORKFLOW_DIR="$BASE_DIR/workflows"
-CREDENTIALS_DIR="$BASE_DIR/credentials"
+# Định nghĩa đường dẫn lưu trữ backup
+BACKUP_DIR="/home/node/n8n_backup"
+WORKFLOW_DIR="$BACKUP_DIR/workflows"
+CREDENTIALS_DIR="$BACKUP_DIR/credentials"
 
-# === Kiểm tra jq đã cài chưa ===
-if ! command -v jq > /dev/null 2>&1; then
-  echo "jq chưa được cài đặt, đang cài đặt..."
-  apt update && apt install -y jq
-fi
+# Tạo thư mục lưu trữ nếu chưa tồn tại
+mkdir -p "$WORKFLOW_DIR"
+mkdir -p "$CREDENTIALS_DIR"
 
-# === Hàm tạo slug: bỏ dấu, lowercase, thay ký tự đặc biệt bằng "-" ===
-remove_vietnamese_accents() {
-  echo "$1" \
-    | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null \
-    | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g' \
-    | sed -E 's/^-+|-+$//g' \
-    | sed -E 's/-+/-/g'
-}
+# Xoá các file JSON cũ trong thư mục backup
+echo "🧹 Đang xoá các file JSON cũ trong thư mục workflows..."
+rm -f "$WORKFLOW_DIR"/*.json
+rm -f "$CREDENTIALS_DIR"/*.json
 
-# === Hàm đổi tên file JSON trong thư mục ===
-rename_files_in_directory() {
-  DIR="$1"
+# Export lại toàn bộ workflows và credentials
+echo "📦 Đang export workflows..."
+docker exec -it n8n npx n8n export:workflow --backup --output "$WORKFLOW_DIR" --pretty
 
-  if [ ! -d "$DIR" ]; then
-    echo "📂 Thư mục $DIR không tồn tại, bỏ qua..."
-    return
-  fi
+echo "📦 Đang export credentials..."
+docker exec -it n8n npx n8n export:credentials --backup --output "$CREDENTIALS_DIR" --pretty
 
-  for file in "$DIR"/*.json; do
-    [ -f "$file" ] || continue
+# Đổi tên các file theo tên thực tế của workflow/credential (nếu có file rename)
+echo "🔄 Đang đổi tên các file..."
+sh /home/node/rename-workflow-files.sh
 
-    name=$(jq -r '.name' "$file" 2>/dev/null)
-    if [ -z "$name" ] || [ "$name" = "null" ]; then
-      echo "⚠️ Không lấy được tên từ $(basename "$file"), bỏ qua..."
-      continue
-    fi
-
-    safe_name=$(remove_vietnamese_accents "$name")
-    new_path="$DIR/${safe_name}.json"
-
-    if [ "$file" != "$new_path" ]; then
-      mv "$file" "$new_path"
-      echo "✅ Đã đổi: $(basename "$file") → $(basename "$new_path")"
-    fi
-  done
-}
-
-# === Xoá các file cũ ===
-echo "🧹 Xoá file JSON cũ..."
-mkdir -p "$WORKFLOW_DIR" "$CREDENTIALS_DIR"
-rm -f "$WORKFLOW_DIR/"*.json "$CREDENTIALS_DIR/"*.json || true
-
-# === Export dữ liệu từ n8n ===
-echo "📤 Export workflows và credentials..."
-npx n8n export:workflow --backup --output "$WORKFLOW_DIR" --pretty
-npx n8n export:credentials --backup --output "$CREDENTIALS_DIR" --pretty
-
-# === Đổi tên file ===
-echo "🔤 Đổi tên file JSON..."
-rename_files_in_directory "$WORKFLOW_DIR"
-rename_files_in_directory "$CREDENTIALS_DIR"
-
-# === Push Git ===
-echo "📦 Đẩy lên GitHub..."
-cd "$BASE_DIR"
+# Push lên Github (cần cấu hình git và token để push)
+echo "🚀 Đang push lên Github..."
+cd "$BACKUP_DIR"
 git add .
-git commit -m "Backup auto $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "🟡 Không có thay đổi để commit."
+git commit -m "Backup auto $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 git push origin main
 
-echo "✅ Hoàn tất backup và đẩy GitHub."
+echo "🎉 Backup và push lên Github hoàn tất!"
