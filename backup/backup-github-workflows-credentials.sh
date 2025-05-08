@@ -6,6 +6,7 @@ WORKFLOW_DIR="$BACKUP_DIR/workflows"
 CREDENTIALS_DIR="$BACKUP_DIR/credentials"
 
 # Tạo thư mục lưu trữ nếu chưa tồn tại
+echo "🛠️ Đang tạo thư mục lưu trữ..."
 docker exec -it n8n sh -c "mkdir -p $WORKFLOW_DIR && mkdir -p $CREDENTIALS_DIR"
 
 # Xoá các file JSON cũ trong thư mục backup
@@ -70,6 +71,11 @@ rename_files_in_directory "$CREDENTIALS_DIR"
 
 # Push lên Github (cần cấu hình git và token để push)
 echo "🚀 Đang push lên Github..."
+
+# Kiểm tra xem có phải là git repository không, nếu chưa thì clone từ GitHub
+docker exec -it n8n sh -c "cd $BACKUP_DIR && if [ ! -d .git ]; then git init && git remote add origin https://github.com/yourusername/your-repository.git && git pull origin main; fi"
+
+# Push các thay đổi lên GitHub
 docker exec -it n8n sh -c "cd $BACKUP_DIR && git add . && git commit -m 'Backup auto $(date -u +'%Y-%m-%dT%H:%M:%SZ')' && git push origin main"
 
 echo "🎉 Backup và push lên Github hoàn tất!"
