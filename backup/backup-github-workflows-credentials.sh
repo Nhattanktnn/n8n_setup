@@ -1,76 +1,69 @@
 #!/bin/sh
 
-# Định nghĩa đường dẫn lưu trữ backup
+# Định nghĩa đường dẫn
 BACKUP_DIR="/home/node/n8n_backup"
 WORKFLOW_DIR="$BACKUP_DIR/workflows"
 CREDENTIALS_DIR="$BACKUP_DIR/credentials"
 
-# Tạo thư mục lưu trữ với quyền user node
-echo "🛠️ Đang tạo thư mục lưu trữ..."
-docker exec -u node n8n sh -c "mkdir -p $WORKFLOW_DIR && mkdir -p $CREDENTIALS_DIR"
-
-# Xoá các file JSON cũ
-echo "🧹 Đang xoá các file JSON cũ..."
-docker exec -u node n8n sh -c "rm -f $WORKFLOW_DIR/*.json $CREDENTIALS_DIR/*.json"
-
-# Export workflows và credentials
-echo "📦 Đang export workflows..."
-docker exec -u node n8n sh -c "npx n8n export:workflow --backup --output $WORKFLOW_DIR --pretty"
-
-echo "📦 Đang export credentials..."
-docker exec -u node n8n sh -c "npx n8n export:credentials --backup --output $CREDENTIALS_DIR --pretty"
-
-# Hàm chuẩn hóa tên file
-normalize_filename() {
+# Hàm chuẩn hóa tên file chạy TRONG container
+NORMALIZE_SCRIPT='
+normalize() {
   echo "$1" | 
   iconv -f utf8 -t ascii//TRANSLIT//IGNORE | 
-  tr '[:upper:]' '[:lower:]' |
-  sed -E 's/[^a-z0-9]+/-/g' |
-  sed -E 's/^-+|-+$//g' |
-  sed -E 's/-+/-/g'
-}
+  tr "[:upper:]" "[:lower:]" |
+  sed -E "s/[^a-z0-9]+/-/g" |
+  sed -E "s/^-+|-+$//g" |
+  sed -E "s/-+/-/g"
+}'
 
-# Hàm đổi tên file trong container
 rename_files() {
   DIR_TYPE="$1"
   CONTAINER_DIR="$2"
   
+  echo "🔄 Đang đổi tên ${DIR_TYPE}..."
+  
   docker exec -u node n8n sh <<EOF
-    for file in $CONTAINER_DIR/*.json; do
+    $NORMALIZE_SCRIPT
+
+    for file in ${CONTAINER_DIR}/*.json; do
       [ -f "\$file" ] || continue
       
-      # Lấy ID và Name từ file
-      id=\$(jq -r '.id' "\$file" 2>/dev/null)
-      name=\$(jq -r '.name' "\$file" 2>/dev/null)
+      # Lấy thông tin từ file
+      id=\$(jq -r '.id // ""' "\$file" 2>/dev/null)
+      name=\$(jq -r '.name // ""' "\$file" 2>/dev/null)
       
-      # Tạo tên file an toàn
-      if [ -n "\$name" ] && [ "\$name" != "null" ]; then
-        safe_name=\$(echo "\$name" | normalize_filename)
+      # Tạo filename
+      if [ -n "\$name" ]; then
+        safe_name=\$(normalize "\$name")
         filename="\${safe_name}"
-      else
+      elif [ -n "\$id" ]; then
         filename="\${id}"
+      else
+        echo "⚠️ File \$file thiếu cả name và id, bỏ qua..."
+        continue
       fi
-      
-      # Đảm bảo không trùng lặp
-      new_path="$CONTAINER_DIR/\${filename}.json"
+
+      # Đảm bảo không trùng
+      new_path="${CONTAINER_DIR}/\${filename}.json"
       counter=1
-      while [ -f "\$new_path" ]; do
-        new_path="$CONTAINER_DIR/\${filename}-\${counter}.json"
+      while [ -f "\$new_path" ] && [ "\$(realpath "\$new_path")" != "\$(realpath "\$file")" ]; do
+        new_path="${CONTAINER_DIR}/\${filename}-\${counter}.json"
         counter=\$((counter+1))
       done
-      
-      mv "\$file" "\$new_path"
-      echo "✅ Đã đổi $DIR_TYPE: \$(basename "\$file") → \$(basename "\$new_path")"
+
+      # Đổi tên
+      if ! mv -f "\$file" "\$new_path"; then
+        echo "❌ Lỗi khi đổi tên \$file"
+      else
+        echo "✅ Đổi: \$(basename "\$file") → \$(basename "\$new_path")"
+      fi
     done
 EOF
 }
 
-# Đổi tên workflows và credentials
-echo "🔄 Đang đổi tên workflows..."
-rename_files "workflow" "$WORKFLOW_DIR"
-
-echo "🔄 Đang đổi tên credentials..."
-rename_files "credential" "$CREDENTIALS_DIR"
+# Gọi hàm đổi tên
+rename_files "workflows" "$WORKFLOW_DIR"
+rename_files "credentials" "$CREDENTIALS_DIR"
 
 # Cấu hình GitHub
 GIT_REPO="https://github_token@github.com/yourusername/yourrepo.git"
