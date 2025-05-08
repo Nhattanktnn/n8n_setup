@@ -20,6 +20,8 @@ docker exec -it n8n sh -c "npx n8n export:workflow --backup --output $WORKFLOW_D
 echo "📦 Đang export credentials..."
 docker exec -it n8n sh -c "npx n8n export:credentials --backup --output $CREDENTIALS_DIR --pretty"
 
+docker exec n8n sh -c "chown -R node:node /home/node/n8n_backup"
+
 # Hàm loại bỏ dấu tiếng Việt, chuyển thành lowercase và thay ký tự đặc biệt bằng "-"
 remove_vietnamese_accents() {
   echo "$1" \
