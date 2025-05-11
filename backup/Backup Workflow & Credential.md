@@ -5,9 +5,9 @@
 
 * * *
 Ngắn gọn: Tạo SSH theo hướng dẫn:  
-👉 [Tạo SSH key và kết nối Github bằng SSH](https://community.autoai.asia/d/9-huong-dan-tao-ssh-key-va-clone-git-repository-bang-ssh-github)  
+👉 [Tạo SSH key và kết nối Github bằng SSH](https://github.com/Nhattanktnn/n8n_setup/blob/main/backup/T%E1%BA%A1o%20SSH%20Key%20GitHub.md)  
 Sau đó Import và chạy workflows sau:  
-👉 [backup-credential-and-workflow](https://community.autoai.asia/d/9-huong-dan-tao-ssh-key-va-clone-git-repository-bang-ssh-github)  
+👉 [backup-credential-and-workflow](https://github.com/Nhattanktnn/n8n_setup/blob/main/backup/backup-credentials-and-workflows.json)  
 Xong!!!
 
 * * *
