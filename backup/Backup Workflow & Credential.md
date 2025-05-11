@@ -4,6 +4,15 @@
 > Giúp bạn tự động backup và quản lý version workflow / credential một cách an toàn, gọn gàng trên Github.
 
 * * *
+Ngắn gọn: Tạo SSH theo hướng dẫn:  
+👉 [Tạo SSH key và kết nối Github bằng SSH](https://community.autoai.asia/d/9-huong-dan-tao-ssh-key-va-clone-git-repository-bang-ssh-github)  
+Sau đó Import và chạy workflows sau:  
+👉 [backup-credential-and-workflow](https://community.autoai.asia/d/9-huong-dan-tao-ssh-key-va-clone-git-repository-bang-ssh-github)  
+Xong!!!
+
+* * *
+
+# Dưới đây chỉ là mô tả chi tiết hơn
 
 # 📦Chuẩn bị
 
