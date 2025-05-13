@@ -43,7 +43,7 @@ Nếu thấy id\_rsa và id\_rsa.pub thì bạn đã có SSH key. Nếu không, 
 
 ## 5\. Kiểm tra kết nối với GitHub
 
-`ssh -T git@github.com`  
+    ssh -T git@github.com  
 Kết quả thành công:
 
 Hi your-username! You've successfully authenticated...
@@ -55,7 +55,12 @@ Thay vì HTTPS, dùng SSH:
     git clone git@github.com:username/repo.git
 Ví dụ:
 
-    git clone git@github.com:Nhattanktnn/n8n_backup.git  
+    git clone git@github.com:Nhattanktnn/n8n_backup.git
+
+hoặc sau khi đã clone muốn pull về lại thì dùng câu lệnh:
+
+    cd n8n_backup && git pull
+
 ## Tóm tắt nhanh
 
 Bước Lệnh chính  
