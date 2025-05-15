@@ -4,7 +4,8 @@ export DOCKER_BUILDKIT=1
 
 ROOT_DIR=~/n8n-docker
 # CLOUDFLARE_TUNNEL_NAME=n8n-selfhost-tunnel
-printf "\nNhập tên Tunnel Cloudflare cần tạo: "
+echo "Đang đặt tên Tunnel"
+printf "Nhập tên Tunnel Cloudflare cần tạo: "
 # Tắt hiển thị input: stty -echo
 read CLOUDFLARE_TUNNEL_NAME
 
