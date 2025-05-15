@@ -31,7 +31,7 @@ Copy domain để sử dụng
 
 ## B3: Chạy code
 ```
-bash <(curl -L https://raw.githubusercontent.com/Nhattanktnn/n8n_setup/refs/heads/main/setup/setup.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/Nhattanktnn/n8n_setup/refs/heads/main/setup/setup.sh)
 ```
 ### Sau khi cài, nếu lỗi, hãy thử lệnh dưới đây, sau đó chạy lại bước 3:
 ```
