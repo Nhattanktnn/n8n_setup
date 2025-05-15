@@ -17,13 +17,21 @@ n8n-docker/
 ## B2: Tạo API token:
 Vào Account (góc phải) -> Profile -> API Tokens -> Create Custom Token :
 - Permissions:
-  Account | Account Setting | Read
-  Zone | Zone | Read
-  Zone | DNS | Edit
-- Account Resource:
-  Include | All Account
-- Zone Resources:
-  Include | Special Zone | domain của bạn
+
+```
+|---------|-----------------|------|
+| Account | Account Setting | Read |
+|---------|-----------------|------|
+|   Zone  |       Zone      | Read |
+|---------|-----------------|------|
+|   Zone  |       DNS       | Edit |
+|---------|-----------------|------|
+```
+
+- Account Resource:  
+`| Include | All Account |`
+- Zone Resources:  
+`| Include | Special Zone | domain của bạn |`  
 => Continue to summary
 
 Copy Token API để sử dụng.
