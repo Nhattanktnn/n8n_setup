@@ -4,10 +4,7 @@ export DOCKER_BUILDKIT=1
 
 ROOT_DIR=~/n8n-docker
 # CLOUDFLARE_TUNNEL_NAME=n8n-selfhost-tunnel
-echo "Đang đặt tên Tunnel"
-printf "Nhập tên Tunnel Cloudflare cần tạo: "
-# Tắt hiển thị input: stty -echo
-read CLOUDFLARE_TUNNEL_NAME
+read -p "Nhập tên Tunnel Cloudflare cần tạo: " CLOUDFLARE_TUNNEL_NAME
 
 # Cập nhật package list
 sudo apt-get update
