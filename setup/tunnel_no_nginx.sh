@@ -1,12 +1,12 @@
 #!/bin/bash
-set -e
+set -e # Dừng script nếu có lỗi
 export DOCKER_BUILDKIT=1
 
 ROOT_DIR=~/n8n-docker
-read -p "Nhập tên Tunnel Cloudflare cần tạo/đồng bộ: " CLOUDFLARE_TUNNEL_NAME
+read -p "Nhập tên Tunnel Cloudflare cần sử dụng/tạo: " CLOUDFLARE_TUNNEL_NAME
 
 # Cập nhật package list
-sudo apt-get update -qq
+sudo apt-get update
 
 # Kiểm tra và cài đặt dependencies
 echo "🔎 Kiểm tra dependencies..."
@@ -23,7 +23,7 @@ fi
 # Đảm bảo Docker daemon hoạt động
 if ! sudo systemctl is-active --quiet docker; then
     echo "❌ Docker daemon không hoạt động. Đang khởi động..."
-    sudo systemctl start docker || { echo "❌ Không thể khởi động Docker"; exit 1; }
+    sudo systemctl start docker
 fi
 sudo systemctl enable docker
 
@@ -41,187 +41,279 @@ if ! command -v docker-compose >/dev/null 2>&1; then
     sudo chmod +x /usr/local/bin/docker-compose || { echo "❌ Cài Docker Compose thất bại"; exit 1; }
 fi
 
-# Tạo thư mục dự án
 echo "🚀 Đang tạo thư mục dự án tại $ROOT_DIR..."
 mkdir -p $ROOT_DIR/cloudflared
 cd $ROOT_DIR
 
-# Nhập domain và validate
-read -p "🌐 Nhập domain (VD: sub.domain.com hoặc domain.com): " DOMAIN_INPUT
-DOMAIN=$(echo "$DOMAIN_INPUT" | sed -E 's~^https?://~~;s/\/$//')
-if ! echo "$DOMAIN" | grep -qP '(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$)'; then
-    echo "❌ Domain không hợp lệ!"
+# Nhập và kiểm tra domain
+[ -t 0 ] || exec < /dev/tty
+read -p "🌐 Nhập tên miền (VD: n8n.domain.com): " DOMAIN_INPUT
+DOMAIN=$(echo "$DOMAIN_INPUT" | sed 's~^https\?://~~')
+
+# Kiểm tra tên miền
+if ! echo "$DOMAIN" | grep -qE '^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'; then
+    echo "❌ Tên miền không hợp lệ!"
     exit 1
 fi
 
-# Nhập Cloudflare API Token
-echo "🔑 API Token cần quyền: Zone.Zone, Zone.DNS, Tunnel:Edit"
-read -p "Nhập API Token Cloudflare: " CF_API_TOKEN
-echo
+N8N_PROTOCOL=$(echo "$DOMAIN_INPUT" | grep -Eo '^https?://' | sed 's~://~~')
+if [ -z "$N8N_PROTOCOL" ]; then
+    N8N_PROTOCOL="https"
+fi
 
-# Kiểm tra và xử lý Cloudflared
-echo "🔧 Kiểm tra cloudflared..."
+# Nhập API Token (ẩn input)
+echo "🔑 API Token cần quyền Zone:Read, Zone:DNS:Edit"
+printf "🔑 Nhập API Token Cloudflare: "
+read CF_API_TOKEN
+
+# Kiểm tra cloudflared
+echo "🔎 Kiểm tra cloudflared..."
 if ! command -v cloudflared &>/dev/null; then
-    echo "⚠️ Cloudflared chưa cài đặt. Đang cài đặt..."
-    sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
-        -O /tmp/cloudflared.deb
-    sudo dpkg -i /tmp/cloudflared.deb || { echo "❌ Cài đặt cloudflared thất bại"; exit 1; }
+    echo "❌ Cloudflared chưa cài. Đang cài đặt..."
+    if [[ $(uname -s) == "Linux" && $(dpkg --print-architecture) == "amd64" ]]; then
+        wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb || { echo "❌ Cài cloudflared thất bại"; exit 1; }
+        rm cloudflared-linux-amd64.deb
+        sudo cloudflared --version || { echo "❌ Kiểm tra cloudflared thất bại"; exit 1; }
+    else
+        echo "❌ Hệ thống không hỗ trợ cài tự động. Cài cloudflared thủ công:"
+        echo "wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+        echo "chmod +x cloudflared-linux-amd64 && sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared"
+        exit 1
+    fi
+else
+    echo "✅ Cloudflared đã cài."
 fi
 
 # Đăng nhập Cloudflare
 CERT_FILE="$HOME/.cloudflared/cert.pem"
+
+# Kiểm tra certificate đã tồn tại
 if [ ! -f "$CERT_FILE" ]; then
     echo "🔐 Đăng nhập Cloudflare..."
     cloudflared tunnel login || { echo "❌ Đăng nhập Cloudflare thất bại"; exit 1; }
+else
+    echo "✅ Certificate Cloudflare đã tồn tại."
 fi
 
-# Xử lý Tunnel
-echo "🔍 Kiểm tra tunnel tồn tại..."
-TUNNEL_EXISTS=$(cloudflared tunnel list | grep -c "$CLOUDFLARE_TUNNEL_NAME" || true)
+# Kiểm tra Tunnel đã tồn tại
+TUNNEL_EXISTS=$(cloudflared tunnel list | grep -w "$CLOUDFLARE_TUNNEL_NAME" | wc -l)
+
 if [ "$TUNNEL_EXISTS" -eq 0 ]; then
-    echo "🆕 Tạo tunnel mới: $CLOUDFLARE_TUNNEL_NAME..."
-    cloudflared tunnel create "$CLOUDFLARE_TUNNEL_NAME" || { echo "❌ Tạo tunnel thất bại"; exit 1; }
+    # Tunnel chưa tồn tại, tạo mới
+    echo "🔨 Tạo Tunnel mới: $CLOUDFLARE_TUNNEL_NAME..."
+    cloudflared tunnel create $CLOUDFLARE_TUNNEL_NAME || { echo "❌ Tạo tunnel thất bại"; exit 1; }
 else
-    echo "✅ Tunnel đã tồn tại: $CLOUDFLARE_TUNNEL_NAME"
+    echo "✅ Tunnel $CLOUDFLARE_TUNNEL_NAME đã tồn tại, sẽ sử dụng tunnel này."
 fi
 
 # Lấy Tunnel ID
-TUNNEL_ID=$(cloudflared tunnel list | grep "$CLOUDFLARE_TUNNEL_NAME" | awk '{print $1}' | head -n 1)
-[ -z "$TUNNEL_ID" ] && { echo "❌ Không tìm thấy Tunnel ID"; exit 1; }
+TUNNEL_ID=$(cloudflared tunnel list | grep -w "$CLOUDFLARE_TUNNEL_NAME" | awk '{print $1}' | head -n 1)
+if [ -z "$TUNNEL_ID" ]; then
+    echo "❌ Không lấy được Tunnel ID"
+    exit 1
+fi
 echo "✅ Tunnel ID: $TUNNEL_ID"
 
-# Xử lý credentials file
-CRED_FILE="$ROOT_DIR/cloudflared/${TUNNEL_ID}.json"
-if [ ! -f "$CRED_FILE" ]; then
-    echo "🔑 Sao chép credentials file..."
-    cp ~/.cloudflared/${TUNNEL_ID}.json "$CRED_FILE" || { echo "❌ Không tìm thấy credentials file"; exit 1; }
+# Copy credentials
+CREDENTIALS_SOURCE_FILE="$HOME/.cloudflared/${TUNNEL_ID}.json"
+CREDENTIALS_DEST_FILE="$ROOT_DIR/cloudflared/${TUNNEL_ID}.json"
+
+# Xác định Credential cần copy tồn tại hay không
+if [ ! -f "$CREDENTIALS_SOURCE_FILE" ]; then
+    echo "❌ File credentials không tồn tại: $CREDENTIALS_SOURCE_FILE"
+    exit 1
 fi
 
-# Tạo file .env
-echo "📝 Tạo file cấu hình .env..."
+# Copy credentials nếu chưa tồn tại
+if [ ! -f "$CREDENTIALS_DEST_FILE" ]; then
+    cp "$CREDENTIALS_SOURCE_FILE" "$CREDENTIALS_DEST_FILE" || { echo "❌ Không thể copy credentials"; exit 1; }
+    echo "✅ Đã copy credentials"
+else
+    echo "✅ Credentials đã tồn tại"
+fi
+
+# Ghi file .env
 cat <<EOL > .env
-N8N_PROTOCOL=https
-N8N_HOST=$DOMAIN
-N8N_EDITOR_BASE_URL=https://$DOMAIN
-WEBHOOK_URL=https://$DOMAIN
+# .env cấu hình n8n
+N8N_PROTOCOL=${N8N_PROTOCOL}
+N8N_HOST=${DOMAIN}
+N8N_EDITOR_BASE_URL=${N8N_PROTOCOL}://${DOMAIN}
+WEBHOOK_URL=${N8N_PROTOCOL}://${DOMAIN}
 N8N_SECURE_COOKIE=false
 GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
 N8N_BASIC_AUTH_ACTIVE=false
-CLOUDFLARED_TUNNEL_TOKEN=$(cloudflared tunnel token "$CLOUDFLARE_TUNNEL_NAME")
+EXECUTIONS_DATA_SAVE_ON_ERROR=all
+EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+EXECUTIONS_DATA_SAVE_ON_PROGRESS=true
+EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=false
+EXECUTIONS_DATA_PRUNE=true
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+N8N_RUNNERS_ENABLED=true
+EXECUTIONS_DATA_MAX_AGE=259200
+# NODE_FUNCTION_ALLOW_BUILTIN=*
+# NODE_FUNCTION_ALLOW_EXTERNAL=zca-js
+CLOUDFLARED_TUNNEL_TOKEN=$(cloudflared tunnel token $CLOUDFLARE_TUNNEL_NAME)
 EOL
 
-# Docker Compose configuration
-echo "🐳 Tạo file docker-compose.yml..."
+# Ghi file docker-compose.yml
 cat <<EOL > docker-compose.yml
-version: '3.8'
+#version: '3.8'
 
 services:
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    restart: unless-stopped
     ports:
       - "5678:5678"
     env_file: .env
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: always
     networks:
-      - cf_network
+      - internal
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
-    restart: unless-stopped
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=\${CLOUDFLARED_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run --token \${CLOUDFLARED_TUNNEL_TOKEN}
     volumes:
       - ./cloudflared:/etc/cloudflared
+    restart: always
     networks:
-      - cf_network
+      - internal
+
+volumes:
+  n8n_data:
 
 networks:
-  cf_network:
+  internal:
     driver: bridge
 EOL
 
-# Xử lý config.yml
-CONFIG_FILE="cloudflared/config.yml"
-echo "🔧 Xử lý file cấu hình Cloudflared..."
+# Kiểm tra và cập nhật file cấu hình cloudflared
+CONFIG_FILE="$ROOT_DIR/cloudflared/config.yml"
+
+# Lấy nội dung config hiện tại nếu có
 if [ -f "$CONFIG_FILE" ]; then
-    echo "🔄 Phát hiện config.yml đã tồn tại, đang cập nhật..."
+    echo "🔄 Đang đọc file cấu hình cloudflared hiện tại..."
+    # Kiểm tra xem hostname đã tồn tại trong config chưa
+    HOSTNAME_EXISTS=$(grep -c "hostname: $DOMAIN" "$CONFIG_FILE" || true)
     
-    # Kiểm tra hostname đã tồn tại
-    if grep -q "hostname: $DOMAIN" "$CONFIG_FILE"; then
-        echo "✅ Hostname đã tồn tại trong config.yml"
+    if [ "$HOSTNAME_EXISTS" -gt 0 ]; then
+        echo "✅ Domain $DOMAIN đã tồn tại trong cấu hình cloudflared."
     else
-        # Thêm hostname mới vào trước rule 404
-        sed -i '/http_status:404/i \
-  - hostname: '"$DOMAIN"'\
-    service: http://n8n:5678' "$CONFIG_FILE"
-        echo "✅ Đã thêm hostname mới vào config.yml"
+        echo "🔄 Đang thêm domain $DOMAIN vào cấu hình cloudflared..."
+        # Tạo file tạm với nội dung mới
+        TEMP_CONFIG_FILE="$ROOT_DIR/cloudflared/config.yml.tmp"
+        
+        # Lấy dòng đầu tiên có chứa 'ingress:'
+        INGRESS_LINE=$(grep -n "ingress:" "$CONFIG_FILE" | cut -d: -f1)
+        
+        # Tách file thành hai phần: trước và sau 'ingress:'
+        head -n "$INGRESS_LINE" "$CONFIG_FILE" > "$TEMP_CONFIG_FILE"
+        echo "  - hostname: $DOMAIN" >> "$TEMP_CONFIG_FILE"
+        echo "    service: http://n8n:5678" >> "$TEMP_CONFIG_FILE"
+        tail -n +$((INGRESS_LINE+1)) "$CONFIG_FILE" >> "$TEMP_CONFIG_FILE"
+        
+        # Thay thế file cũ bằng file mới
+        mv "$TEMP_CONFIG_FILE" "$CONFIG_FILE"
+        echo "✅ Đã thêm cấu hình cho domain $DOMAIN."
     fi
 else
-    echo "🆕 Tạo config.yml mới..."
+    # Tạo file cấu hình mới
+    echo "🔄 Tạo file cấu hình cloudflared mới..."
     cat <<EOL > "$CONFIG_FILE"
-tunnel: $TUNNEL_ID
-credentials-file: /etc/cloudflared/$TUNNEL_ID.json
+tunnel: ${TUNNEL_ID}
+credentials-file: /etc/cloudflared/${TUNNEL_ID}.json
+
 ingress:
-  - hostname: $DOMAIN
+  - hostname: ${DOMAIN}
     service: http://n8n:5678
   - service: http_status:404
 EOL
+    echo "✅ Đã tạo file cấu hình cloudflared."
 fi
 
-# Xử lý DNS Records
-echo "🔗 Xử lý bản ghi DNS..."
+echo "🌐 Tạo bản ghi DNS trỏ tên miền vào Tunnel..."
+
+# Lấy thông tin domain từ tên miền đầy đủ
+DOMAIN_PARTS=(${DOMAIN//./ })
+ROOT_DOMAIN="${DOMAIN_PARTS[*]: -2:2}"
+ROOT_DOMAIN="${ROOT_DOMAIN// /.}"
+
+# Lấy Zone ID
 ZONE_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones" \
   -H "Authorization: Bearer ${CF_API_TOKEN}" \
   -H "Content-Type: application/json")
 
-ZONE_ID=$(echo "$ZONE_INFO" | jq -r --arg domain "$DOMAIN" '.result[] | select(.name == $domain | .id)')
+ZONE_ID=$(echo "$ZONE_INFO" | jq -r --arg name "$ROOT_DOMAIN" '.result[] | select(.name == $name) | .id')
 
-if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "null" ]; then
-    echo "⚠️ Không tìm thấy Zone ID cho domain chính, thử tìm zone cha..."
-    DOMAIN_PARTS=(${DOMAIN//./ })
-    PARENT_DOMAIN="${DOMAIN_PARTS[-2]}.${DOMAIN_PARTS[-1]}"
-    ZONE_ID=$(echo "$ZONE_INFO" | jq -r --arg domain "$PARENT_DOMAIN" '.result[] | select(.name == $domain) | .id')
+if [ "$ZONE_ID" = "null" ] || [ -z "$ZONE_ID" ]; then
+    echo "❌ Không tìm được Zone ID. Kiểm tra domain hoặc token."
+    exit 1
 fi
 
-if [ -n "$ZONE_ID" ] && [ "$ZONE_ID" != "null" ]; then
-    echo "🔍 Kiểm tra bản ghi DNS cho $DOMAIN..."
-    DNS_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${DOMAIN}" \
-      -H "Authorization: Bearer ${CF_API_TOKEN}" \
-      -H "Content-Type: application/json")
+# Kiểm tra bản ghi DNS
+DNS_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${DOMAIN}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+DNS_EXISTS=$(echo $DNS_CHECK | jq -r '.result | length')
+
+if [ "$DNS_EXISTS" -gt 0 ]; then
+    echo "⚠️ Bản ghi DNS cho $DOMAIN đã tồn tại."
     
-    if [ $(echo "$DNS_CHECK" | jq '.result | length') -eq 0 ]; then
-        echo "🆕 Tạo bản ghi CNAME mới..."
-        CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+    # Kiểm tra nội dung bản ghi
+    CURRENT_CONTENT=$(echo "$DNS_CHECK" | jq -r '.result[0].content')
+    if [ "$CURRENT_CONTENT" = "${TUNNEL_ID}.cfargotunnel.com" ]; then
+        echo "✅ Bản ghi DNS đã trỏ đúng vào tunnel. Không cần sửa."
+    else
+        echo "🔄 Bản ghi DNS không trỏ đúng tunnel. Đang cập nhật..."
+        
+        # Lấy DNS Record ID
+        DNS_RECORD_ID=$(echo "$DNS_CHECK" | jq -r '.result[0].id')
+        
+        # Cập nhật bản ghi DNS
+        UPDATE_DNS=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${DNS_RECORD_ID}" \
           -H "Authorization: Bearer ${CF_API_TOKEN}" \
           -H "Content-Type: application/json" \
           --data '{
-              "type":"CNAME",
-              "name":"'"${DOMAIN}"'",
-              "content":"'"${TUNNEL_ID}.cfargotunnel.com"'",
-              "ttl":120,
-              "proxied":true
+            "type":"CNAME",
+            "name":"'"${DOMAIN}"'",
+            "content":"'"${TUNNEL_ID}.cfargotunnel.com"'",
+            "ttl":120,
+            "proxied":true
           }')
         
-        if [ $(echo "$CREATE_DNS" | jq '.success') = "true" ]; then
-            echo "✅ Đã tạo bản ghi DNS thành công!"
-        else
-            echo "⚠️ Không thể tạo bản ghi DNS: $(echo "$CREATE_DNS" | jq '.errors')"
+        if [ "$(echo "$UPDATE_DNS" | jq -r '.success')" != "true" ]; then
+            echo "❌ Cập nhật bản ghi DNS thất bại: $(echo "$UPDATE_DNS" | jq -r '.errors')"
+            exit 1
         fi
-    else
-        echo "✅ Bản ghi DNS đã tồn tại"
+        echo "✅ Đã cập nhật bản ghi DNS thành công!"
     fi
 else
-    echo "⚠️ Không tìm thấy Zone ID phù hợp, bỏ qua tạo DNS Record"
+    # Tạo bản ghi CNAME mới
+    echo "🔄 Đang tạo bản ghi DNS mới..."
+    CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data '{
+        "type":"CNAME",
+        "name":"'"${DOMAIN}"'",
+        "content":"'"${TUNNEL_ID}.cfargotunnel.com"'",
+        "ttl":120,
+        "proxied":true
+      }')
+
+    SUCCESS=$(echo "$CREATE_DNS" | jq -r '.success')
+    if [ "$SUCCESS" != "true" ]; then
+        echo "❌ Tạo DNS thất bại: $(echo "$CREATE_DNS" | jq -r '.errors')"
+        exit 1
+    fi
+    echo "✅ Đã tạo bản ghi DNS CNAME cho $DOMAIN!"
 fi
 
-# Khởi động hệ thống
-echo "🚀 Khởi động containers..."
-docker-compose down
-docker-compose up -d --force-recreate
+echo "👉 Setup n8n bằng docker-compose:"
+cd ~/n8n-docker && docker-compose pull && docker-compose up -d --force-recreate
 
-echo "✨ Cài đặt hoàn tất!"
-echo "👉 Truy cập: https://$DOMAIN sau vài phút"
-echo "🔧 Kiểm tra trạng thái tunnel: docker logs cloudflared"
+echo "🌟 Hệ thống n8n + cloudflared + DNS ready!"
+echo "🌐 Truy cập n8n tại: ${N8N_PROTOCOL}://${DOMAIN}"
+echo '⚠️ Lưu ý: Nếu Docker vẫn không hoạt động, hãy chạy: newgrp docker hoặc sudo reboot'
