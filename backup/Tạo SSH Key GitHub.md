@@ -1,6 +1,6 @@
 # Hướng Dẫn Tạo SSH Key và Clone Git Repository Bằng SSH (GitHub)
 
-Bạn cần phải vào N8N docker trước bằng lệnh:
+Bạn cần phải vào N8N docker trước bằng lệnh (Hoặc nếu tạo trên vps mà không phải trong container thì không cần bước này):
 
     docker exec -it n8n sh
 
@@ -60,6 +60,10 @@ Ví dụ:
 hoặc sau khi đã clone muốn pull về lại thì dùng câu lệnh:
 
     cd n8n_backup && git pull
+
+** Lưu ý: Nếu tạo trong vps và ánh xạ vào container, thì docker-compose.yml bổ sung đoạn này trong ```volumes```:
+
+    - ~/.ssh:/home/node/.ssh:ro
 
 ## Tóm tắt nhanh
 
